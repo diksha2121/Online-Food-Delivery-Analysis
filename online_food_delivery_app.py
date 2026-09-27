@@ -730,3 +730,78 @@ with tab2:
 
             except Exception as e:
                 st.error(f"Error executing query: {e}")
+
+# ------------------------------------------
+# TAB 3: EXECUTIVE DASHBOARD & KPIS
+# ------------------------------------------
+with tab3:
+    st.header("Executive Dashboard")
+    st.subheader("Key Performance Indicators (KPIs)")
+
+    # 1. Total Orders
+    total_orders = len(df_clean)
+
+    # 2. Total Revenue (Using Final_Amount after discounts)
+    total_revenue = (
+        df_clean["Final_Amount"].sum()
+        if "Final_Amount" in df_clean.columns
+        else 0.0
+    )
+
+    # 3. Average Order Value
+    avg_order_value = (
+        df_clean["Final_Amount"].mean()
+        if "Final_Amount" in df_clean.columns
+        else 0.0
+    )
+
+    # 4. Average Delivery Time (Using Delivery_Time_Min)
+    avg_delivery_time = (
+        df_clean["Delivery_Time_Min"].mean()
+        if "Delivery_Time_Min" in df_clean.columns
+        else 0.0
+    )
+
+    # 5. Cancellation Rate (Counting all reasons except 'Not Cancelled')
+    if "Cancellation_Reason" in df_clean.columns and total_orders > 0:
+        cancelled_orders = len(
+            df_clean[df_clean["Cancellation_Reason"] != "Not Cancelled"]
+        )
+        cancellation_rate = (cancelled_orders / total_orders) * 100
+    else:
+        cancellation_rate = 0.0
+
+    # 6. Average Delivery Rating (Using Delivery_Rating)
+    avg_delivery_rating = (
+        df_clean["Delivery_Rating"].mean()
+        if "Delivery_Rating" in df_clean.columns
+        else 0.0
+    )
+
+    # 7. Profit Margin %
+    if "Profit_Margin_Percentage" in df_clean.columns:
+        profit_margin = df_clean["Profit_Margin_Percentage"].mean()
+    elif "Profit_Margin" in df_clean.columns and total_revenue > 0:
+        profit_margin = (
+            df_clean["Profit_Margin"].sum() / total_revenue
+        ) * 100
+    else:
+        profit_margin = 0.0
+
+    # ------------------------------------------
+    # DISPLAY KPI CARDS
+    # ------------------------------------------
+    # Row 1: Revenue & Profit Metrics
+    kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+    kpi1.metric("Total Orders", f"{total_orders:,}")
+    kpi2.metric("Total Revenue", f"₹{total_revenue:,.2f}")
+    kpi3.metric("Avg Order Value", f"₹{avg_order_value:,.2f}")
+    kpi4.metric("Profit Margin", f"{profit_margin:.2f}%")
+
+    st.markdown("---")
+
+    # Row 2: Operational & Quality Metrics
+    kpi5, kpi6, kpi7 = st.columns(3)
+    kpi5.metric("Avg Delivery Time", f"{avg_delivery_time:.1f} mins")
+    kpi6.metric("Cancellation Rate", f"{cancellation_rate:.1f}%")
+    kpi7.metric("Avg Delivery Rating", f"⭐ {avg_delivery_rating:.2f}")
