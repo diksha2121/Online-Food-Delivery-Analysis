@@ -150,7 +150,7 @@ def load_clean_and_ingest_data():
 
     # Database Storage
     DB_USER = "root"
-    DB_PASS = "JaihSQL21!"
+    DB_PASS = "yourpassword"
     DB_HOST = "localhost"
     DB_NAME = "food_delivery_db"
 
@@ -177,7 +177,7 @@ with st.spinner("Processing data and setting up MySQL database..."):
 @st.cache_resource
 def get_engine():
     DB_USER = "root"
-    DB_PASS = "JaihSQL21!"
+    DB_PASS = "yourpassword"
     DB_HOST = "localhost"
     DB_NAME = "food_delivery_db"
     return create_engine(
