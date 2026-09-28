@@ -6,14 +6,8 @@ import streamlit as st
 from sqlalchemy import create_engine
 
 # Streamlit Dashboard Setup
-st.set_page_config(
-    page_title="Food Delivery EDA & Analysis Dashboard",
-    page_icon="🍔",
-    layout="wide",
-)
-
+st.set_page_config(page_title="Food Delivery EDA & Analysis Dashboard", page_icon="🍔", layout="wide",)
 st.title("🍔 Food Delivery Data Analysis & Dashboard")
-
 
 # Data Processing and MySQL Insertion
 @st.cache_data
@@ -26,20 +20,13 @@ def load_clean_and_ingest_data():
     df_clean["Order_Date"] = pd.to_datetime(df_clean["Order_Date"])
     if "Order_Time" in df_clean.columns:
         df_clean = df_clean.drop("Order_Time", axis=1)
-
-    # Calculate null percent quietly
+    
     null_percent = df_clean.isnull().mean() * 100
 
     str_col = df_clean.select_dtypes(include="object").columns.to_list()
 
     # Handle missing values for string columns
-    str_mode_cols = [
-        "Customer_Gender",
-        "City",
-        "Area",
-        "Cuisine_Type",
-        "Payment_Mode",
-    ]
+    str_mode_cols = ["Customer_Gender", "City", "Area", "Cuisine_Type", "Payment_Mode"]
     for col in str_mode_cols:
         if col in df_clean.columns:
             df_clean[col] = df_clean[col].fillna(df_clean[col].mode()[0])
@@ -59,13 +46,7 @@ def load_clean_and_ingest_data():
 
     # Handle missing values for numerical columns
     num_col = df_clean.select_dtypes(include="number").columns.to_list()
-    num_median_cols = [
-        "Customer_Age",
-        "Delivery_Time_Min",
-        "Distance_km",
-        "Order_Value",
-        "Delivery_Rating",
-    ]
+    num_median_cols = ["Customer_Age", "Delivery_Time_Min", "Distance_km", "Order_Value", "Delivery_Rating",]
     for col in num_median_cols:
         if col in df_clean.columns:
             df_clean[col] = df_clean[col].fillna(df_clean[col].median())
@@ -74,31 +55,21 @@ def load_clean_and_ingest_data():
         df_clean["Discount_Applied"] = df_clean["Discount_Applied"].fillna(0.0)
 
     if "Order_Value" in df_clean.columns and "Discount_Applied" in df_clean.columns:
-        df_clean["Discount_Applied"] = df_clean[
-            ["Discount_Applied", "Order_Value"]
-        ].min(axis=1)
-        df_clean["Final_Amount"] = (
-            df_clean["Order_Value"] - df_clean["Discount_Applied"]
-        )
+        df_clean["Discount_Applied"] = df_clean[["Discount_Applied", "Order_Value"]].min(axis=1)
+        df_clean["Final_Amount"] = (df_clean["Order_Value"] - df_clean["Discount_Applied"])
         df_clean["Final_Amount"] = df_clean["Final_Amount"].clip(lower=0.0)
 
     df_clean = df_clean.dropna(subset=["Order_Date"])
 
     # Correct Ratings and Margins
     if "Restaurant_Rating" in df_clean.columns:
-        df_clean["Restaurant_Rating"] = df_clean["Restaurant_Rating"].clip(
-            upper=5.0
-        )
+        df_clean["Restaurant_Rating"] = df_clean["Restaurant_Rating"].clip(upper=5.0)
 
     if "Profit_Margin" in df_clean.columns:
         df_clean["Profit_Margin"] = df_clean["Profit_Margin"].clip(lower=0.0)
         df_clean["Profit_Margin_Percentage"] = df_clean["Profit_Margin"] * 100
-
-    # Force Delivery_Rating to NaN for Cancelled orders then fill
-    if (
-        "Order_Status" in df_clean.columns
-        and "Delivery_Rating" in df_clean.columns
-    ):
+    
+    if ("Order_Status" in df_clean.columns and "Delivery_Rating" in df_clean.columns):
         df_clean.loc[
             df_clean["Order_Status"] == "Cancelled", "Delivery_Rating"
         ] = np.nan
@@ -117,9 +88,7 @@ def load_clean_and_ingest_data():
         else:
             return "Not Rated"
 
-    df_clean["Delivery_Performance"] = df_clean["Delivery_Rating"].apply(
-        del_per_cat
-    )
+    df_clean["Delivery_Performance"] = df_clean["Delivery_Rating"].apply(del_per_cat)
 
     def age_group_category(age):
         if age <= 25:
@@ -134,17 +103,9 @@ def load_clean_and_ingest_data():
             return "Unknown"
 
     if "Customer_Age" in df_clean.columns:
-        df_clean["Customer_Age_Group"] = df_clean["Customer_Age"].apply(
-            age_group_category
-        )
-        df_clean["Customer_Age_Group"] = pd.Categorical(
-            df_clean["Customer_Age_Group"],
-            categories=[
-                "Young Adult",
-                "Early Career",
-                "Mid Adult",
-                "Senior Adult",
-            ],
+        df_clean["Customer_Age_Group"] = df_clean["Customer_Age"].apply(age_group_category)
+        df_clean["Customer_Age_Group"] = pd.Categorical(df_clean["Customer_Age_Group"],
+            categories=["Young Adult", "Early Career", "Mid Adult", "Senior Adult"],
             ordered=True,
         )
 
@@ -154,21 +115,10 @@ def load_clean_and_ingest_data():
     DB_HOST = "localhost"
     DB_NAME = "food_delivery_db"
 
-    engine = create_engine(
-        f"mysql+pymysql://{DB_USER}:{DB_PASS}@{DB_HOST}/{DB_NAME}"
-    )
-    df_clean.to_sql(
-        name="ofd",
-        con=engine,
-        if_exists="replace",
-        index=False,
-        chunksize=10000,
-    )
-
+    engine = create_engine(f"mysql+pymysql://{DB_USER}:{DB_PASS}@{DB_HOST}/{DB_NAME}")
+    df_clean.to_sql(name="ofd", con=engine, if_exists="replace", index=False, chunksize=10000)
     return df_clean
 
-
-# Execute the ETL Pipeline quietly
 with st.spinner("Processing data and setting up MySQL database..."):
     df_clean = load_clean_and_ingest_data()
 
@@ -180,18 +130,11 @@ def get_engine():
     DB_PASS = "yourpassword"
     DB_HOST = "localhost"
     DB_NAME = "food_delivery_db"
-    return create_engine(
-        f"mysql+pymysql://{DB_USER}:{DB_PASS}@{DB_HOST}/{DB_NAME}"
-    )
-
-
+    return create_engine(f"mysql+pymysql://{DB_USER}:{DB_PASS}@{DB_HOST}/{DB_NAME}")
 engine = get_engine()
 
 # Clean column names (strips whitespace, normalizes casing issues)
 df_clean.columns = df_clean.columns.str.strip()
-
-# Print columns in terminal/app sidebar for debugging if needed
-# st.write("Available columns:", df_clean.columns.tolist())
 
 # ------------------------------------------
 # TAB CREATION & LAYOUT
@@ -223,9 +166,7 @@ with tab1:
     with col_eda1:
         st.markdown("**Order Value Distribution**")
         fig1, ax1 = plt.subplots(figsize=(6, 4))
-        sns.histplot(
-            df_clean["Order_Value"], kde=True, color="skyblue", bins=15, ax=ax1
-        )
+        sns.histplot(df_clean["Order_Value"], kde=True, color="skyblue", bins=15, ax=ax1)
         ax1.set_title("Order_Value Distribution")
         ax1.set_xlabel("Order_Value")
         ax1.set_ylabel("Frequency")
@@ -235,13 +176,7 @@ with tab1:
     with col_eda2:
         st.markdown("**Delivery Time Distribution**")
         fig2, ax2 = plt.subplots(figsize=(6, 4))
-        sns.histplot(
-            df_clean["Delivery_Time_Min"],
-            kde=True,
-            color="orange",
-            bins=15,
-            ax=ax2,
-        )
+        sns.histplot(df_clean["Delivery_Time_Min"], kde=True, color="orange", bins=15, ax=ax2)
         ax2.set_title("Delivery Time Distribution")
         ax2.set_xlabel("Delivery Time in Min")
         ax2.set_ylabel("Frequency")
@@ -256,12 +191,8 @@ with tab1:
     with col_eda3:
         st.markdown("**City-wise Order Count**")
         fig3, ax3 = plt.subplots(figsize=(6, 4))
-        city_counts = (
-            df_clean.groupby("City")["Order_ID"].count().reset_index()
-        )
-        a1 = sns.barplot(
-            data=city_counts, x="City", y="Order_ID", ax=ax3, palette="mako"
-        )
+        city_counts = (df_clean.groupby("City")["Order_ID"].count().reset_index())
+        a1 = sns.barplot(data=city_counts, x="City", y="Order_ID", ax=ax3, palette="mako")
         a1.bar_label(a1.containers[0])
         ax3.set_title("City-wise Order Count")
         ax3.set_xlabel("City")
@@ -272,12 +203,8 @@ with tab1:
     with col_eda4:
         st.markdown("**City-wise Total Revenue**")
         fig4, ax4 = plt.subplots(figsize=(6, 4))
-        city_revenue = (
-            df_clean.groupby("City")["Final_Amount"].sum().reset_index()
-        )
-        a2 = sns.barplot(
-            data=city_revenue, x="City", y="Final_Amount", ax=ax4, palette="rocket"
-        )
+        city_revenue = (df_clean.groupby("City")["Final_Amount"].sum().reset_index())
+        a2 = sns.barplot(data=city_revenue, x="City", y="Final_Amount", ax=ax4, palette="rocket")
         a2.bar_label(a2.containers[0], fmt="%d")
         ax4.set_title("City-wise Total Revenue")
         ax4.set_xlabel("City")
@@ -293,16 +220,8 @@ with tab1:
     with col_eda5:
         st.markdown("**Cuisine-wise Order Count**")
         fig5, ax5 = plt.subplots(figsize=(6, 4))
-        cuisine_counts = (
-            df_clean.groupby("Cuisine_Type")["Order_ID"].count().reset_index()
-        )
-        a3 = sns.barplot(
-            data=cuisine_counts,
-            x="Cuisine_Type",
-            y="Order_ID",
-            ax=ax5,
-            palette="viridis",
-        )
+        cuisine_counts = (df_clean.groupby("Cuisine_Type")["Order_ID"].count().reset_index())
+        a3 = sns.barplot(data=cuisine_counts, x="Cuisine_Type", y="Order_ID", ax=ax5, palette="viridis")
         a3.bar_label(a3.containers[0])
         ax5.set_title("Cuisine-wise Order Count")
         ax5.set_xlabel("Cuisine Type")
@@ -314,18 +233,8 @@ with tab1:
     with col_eda6:
         st.markdown("**Cuisine-wise Average Revenue**")
         fig6, ax6 = plt.subplots(figsize=(6, 4))
-        cuisine_revenue = (
-            df_clean.groupby("Cuisine_Type")["Final_Amount"]
-            .mean()
-            .reset_index()
-        )
-        a4 = sns.barplot(
-            data=cuisine_revenue,
-            x="Cuisine_Type",
-            y="Final_Amount",
-            ax=ax6,
-            palette="magma",
-        )
+        cuisine_revenue = (df_clean.groupby("Cuisine_Type")["Final_Amount"].mean().reset_index())
+        a4 = sns.barplot(data=cuisine_revenue, x="Cuisine_Type", y="Final_Amount", ax=ax6, palette="magma")
         a4.bar_label(a4.containers[0], fmt="%.2f")
         ax6.set_title("Cuisine-wise Average Revenue")
         ax6.set_xlabel("Cuisine Type")
@@ -346,9 +255,7 @@ with tab1:
         st.markdown("**Weekend Vs Weekday Order Counts**")
         fig7, ax7 = plt.subplots(figsize=(6, 4))
         order_counts = df_clean.groupby(day_col)["Order_ID"].count().reset_index()
-        a5 = sns.barplot(
-            data=order_counts, x=day_col, y="Order_ID", ax=ax7, palette="crest"
-        )
+        a5 = sns.barplot(data=order_counts, x=day_col, y="Order_ID", ax=ax7, palette="crest")
         a5.bar_label(a5.containers[0])
         ax7.set_title("Weekend Vs Weekday Order Counts")
         ax7.set_xlabel("Order Day")
@@ -359,12 +266,8 @@ with tab1:
     with col_eda8:
         st.markdown("**Weekend Vs Weekday Average Revenue**")
         fig8, ax8 = plt.subplots(figsize=(6, 4))
-        order_revenue = (
-            df_clean.groupby(day_col)["Final_Amount"].mean().reset_index()
-        )
-        a6 = sns.barplot(
-            data=order_revenue, x=day_col, y="Final_Amount", ax=ax8, palette="flare"
-        )
+        order_revenue = (df_clean.groupby(day_col)["Final_Amount"].mean().reset_index())
+        a6 = sns.barplot(data=order_revenue, x=day_col, y="Final_Amount", ax=ax8, palette="flare")
         a6.bar_label(a6.containers[0], fmt="%.2f")
         ax8.set_title("Weekend Vs Weekday Average Revenue")
         ax8.set_xlabel("Order Day")
@@ -377,14 +280,7 @@ with tab1:
     # 5. Distance vs Delivery Delay Relationship
     st.markdown("**Distance Vs Delivery Delay Relationship**")
     fig9, ax9 = plt.subplots(figsize=(8, 4))
-    sns.scatterplot(
-        data=df_clean,
-        x="Distance_km",
-        y="Delivery_Time_Min",
-        ax=ax9,
-        color="teal",
-        alpha=0.6,
-    )
+    sns.scatterplot(data=df_clean, x="Distance_km", y="Delivery_Time_Min", ax=ax9, color="teal", alpha=0.6)
     ax9.set_title("Distance Vs Delivery Delay Relationship")
     ax9.set_xlabel("Distance in km")
     ax9.set_ylabel("Delivery Time in Mins")
@@ -396,20 +292,12 @@ with tab1:
     # 6. Cancellation Order Analysis
     st.markdown("**Cancellation Order Analysis**")
     df_cancelled = df_clean[df_clean["Cancellation_Reason"] != "Not Cancelled"]
-    cancellation_counts = (
-        df_cancelled["Cancellation_Reason"]
-        .value_counts()
-        .reset_index(name="Count")
-    )
-    cancellation_counts.rename(
-        columns={"Cancellation_Reason": "Reason"}, inplace=True
-    )
+    cancellation_counts = (df_cancelled["Cancellation_Reason"].value_counts().reset_index(name="Count"))
+    cancellation_counts.rename(columns={"Cancellation_Reason": "Reason"}, inplace=True)
 
     total_cancelled = cancellation_counts["Count"].sum()
     if total_cancelled > 0:
-        cancellation_counts["Percentage"] = (
-            cancellation_counts["Count"] / total_cancelled
-        ) * 100
+        cancellation_counts["Percentage"] = (cancellation_counts["Count"] / total_cancelled) * 100
 
     col_cancel_tbl, col_cancel_chart = st.columns([1, 1.5])
 
@@ -419,21 +307,10 @@ with tab1:
 
     with col_cancel_chart:
         fig10, ax10 = plt.subplots(figsize=(7, 4))
-        a7 = sns.barplot(
-            data=cancellation_counts,
-            x="Count",
-            y="Reason",
-            palette="viridis",
-            ax=ax10,
-        )
+        a7 = sns.barplot(data=cancellation_counts, x="Count", y="Reason", palette="viridis", ax=ax10)
         for container in a7.containers:
             a7.bar_label(container, padding=3, fontsize=10, weight="bold")
-        ax10.set_title(
-            "Distribution of Order Cancellation Reasons",
-            fontsize=12,
-            pad=10,
-            weight="bold",
-        )
+        ax10.set_title("Distribution of Order Cancellation Reasons", fontsize=12, pad=10,weight="bold")
         ax10.set_xlabel("Number of Cancelled Orders", fontsize=10)
         ax10.set_ylabel("Cancellation Reason", fontsize=10)
         st.pyplot(fig10)
@@ -447,22 +324,8 @@ with tab1:
     if len(num_col) > 1:
         corr_matrix = df_clean[num_col].corr()
         fig11, ax11 = plt.subplots(figsize=(10, 6))
-        sns.heatmap(
-            data=corr_matrix,
-            annot=True,
-            cmap="viridis",
-            fmt=".2f",
-            vmin=-1,
-            vmax=1,
-            linewidths=0.5,
-            ax=ax11,
-        )
-        ax11.set_title(
-            "Correlation Analysis among numerical features",
-            fontsize=14,
-            pad=15,
-            weight="bold",
-        )
+        sns.heatmap(data=corr_matrix, annot=True, cmap="viridis", fmt=".2f", vmin=-1, vmax=1, linewidths=0.5, ax=ax11,)
+        ax11.set_title("Correlation Analysis among numerical features", fontsize=14, pad=15, weight="bold",)
         st.pyplot(fig11)
         plt.close(fig11)
 
@@ -742,49 +605,29 @@ with tab3:
     total_orders = len(df_clean)
 
     # 2. Total Revenue (Using Final_Amount after discounts)
-    total_revenue = (
-        df_clean["Final_Amount"].sum()
-        if "Final_Amount" in df_clean.columns
-        else 0.0
-    )
+    total_revenue = (df_clean["Final_Amount"].sum() if "Final_Amount" in df_clean.column else 0.0)
 
     # 3. Average Order Value
-    avg_order_value = (
-        df_clean["Final_Amount"].mean()
-        if "Final_Amount" in df_clean.columns
-        else 0.0
-    )
+    avg_order_value = (df_clean["Final_Amount"].mean() if "Final_Amount" in df_clean.columns else 0.0)
 
     # 4. Average Delivery Time (Using Delivery_Time_Min)
-    avg_delivery_time = (
-        df_clean["Delivery_Time_Min"].mean()
-        if "Delivery_Time_Min" in df_clean.columns
-        else 0.0
-    )
+    avg_delivery_time = (df_clean["Delivery_Time_Min"].mean() if "Delivery_Time_Min" in df_clean.columns else 0.0)
 
     # 5. Cancellation Rate (Counting all reasons except 'Not Cancelled')
     if "Cancellation_Reason" in df_clean.columns and total_orders > 0:
-        cancelled_orders = len(
-            df_clean[df_clean["Cancellation_Reason"] != "Not Cancelled"]
-        )
+        cancelled_orders = len(df_clean[df_clean["Cancellation_Reason"] != "Not Cancelled"])
         cancellation_rate = (cancelled_orders / total_orders) * 100
     else:
         cancellation_rate = 0.0
 
     # 6. Average Delivery Rating (Using Delivery_Rating)
-    avg_delivery_rating = (
-        df_clean["Delivery_Rating"].mean()
-        if "Delivery_Rating" in df_clean.columns
-        else 0.0
-    )
+    avg_delivery_rating = (df_clean["Delivery_Rating"].mean() if "Delivery_Rating" in df_clean.columns else 0.0)
 
     # 7. Profit Margin %
     if "Profit_Margin_Percentage" in df_clean.columns:
         profit_margin = df_clean["Profit_Margin_Percentage"].mean()
     elif "Profit_Margin" in df_clean.columns and total_revenue > 0:
-        profit_margin = (
-            df_clean["Profit_Margin"].sum() / total_revenue
-        ) * 100
+        profit_margin = (df_clean["Profit_Margin"].sum() / total_revenue) * 100
     else:
         profit_margin = 0.0
 
